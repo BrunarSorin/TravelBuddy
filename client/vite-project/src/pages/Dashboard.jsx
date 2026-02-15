@@ -24,6 +24,14 @@ export default function Dashboard() {
     setTrips(res.data);
   };
 
+  const rsvp = async (tripId, status) => {
+    await axios.post(`http://localhost:5000/api/trips/${tripId}/rsvp`, {
+      userId: user._id,
+      status,
+    });
+
+    loadTrips();
+  };
   useEffect(() => {
     loadTrips();
   }, []);
@@ -41,8 +49,17 @@ export default function Dashboard() {
 
       <h2>Upcoming Trips</h2>
       {trips.map((trip) => (
-        <div key={trip._id}>
+        <div
+          key={trip._id}
+          style={{ border: "1px solid gray", padding: "10px", margin: "10px" }}
+        >
           <strong>{trip.title}</strong> - {trip.location} - {trip.date}
+          <div>
+            <button onClick={() => rsvp(trip._id, "Yes")}>Yes</button>
+            <button onClick={() => rsvp(trip._id, "No")}>No</button>
+            <button onClick={() => rsvp(trip._id, "Maybe")}>Maybe</button>
+          </div>
+          <p>Participants: {trip.participants.length}</p>
         </div>
       ))}
     </div>
