@@ -1,4 +1,5 @@
 import express from "express";
+import Notification from "../models/Notification.js";
 import Trip from "../models/Trip.js";
 
 const router = express.Router();
@@ -14,6 +15,12 @@ router.post("/", async (req, res) => {
       location,
       createdBy,
       participants: [],
+    });
+
+    // Create notification
+    await Notification.create({
+      message: `New trip created: ${title}`,
+      userId: createdBy,
     });
 
     res.status(201).json(trip);
@@ -45,6 +52,12 @@ router.post("/:id/rsvp", async (req, res) => {
 
     trip.participants.push({ userId, status });
     await trip.save();
+
+    // Create notification
+    await Notification.create({
+      message: `New RSVP (${status}) for trip: ${trip.title}`,
+      userId: trip.createdBy,
+    });
 
     res.json(trip);
   } catch (error) {
