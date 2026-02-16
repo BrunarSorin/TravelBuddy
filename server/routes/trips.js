@@ -4,64 +4,78 @@ import Trip from "../models/Trip.js";
 
 const router = express.Router();
 
-// Create Trip
+// CREATE (Admin)
 router.post("/", async (req, res) => {
   try {
-    const { title, date, location, createdBy } = req.body;
+    if (req.body.role !== "admin")
+      return res.status(403).json({ message: "Admin only" });
 
-    const trip = await Trip.create({
-      title,
-      date,
-      location,
-      createdBy,
-      participants: [],
-    });
+    const trip = await Trip.create(req.body);
 
-    // Create notification
     await Notification.create({
-      message: `New trip created: ${title}`,
-      userId: createdBy,
+      message: `New trip created: ${trip.title}`,
+      userId: "all",
     });
 
     res.status(201).json(trip);
-  } catch (error) {
-    res.status(500).json({ message: "Error creating trip", error });
+  } catch (err) {
+    res.status(500).json(err);
   }
 });
 
-// Get All Trips
+// READ (Everyone)
 router.get("/", async (req, res) => {
   try {
     const trips = await Trip.find().sort({ _id: -1 });
     res.json(trips);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching trips", error });
+  } catch (err) {
+    res.status(500).json(err);
   }
 });
 
-// RSVP to Trip
-router.post("/:id/rsvp", async (req, res) => {
+// UPDATE (Admin)
+router.put("/:id", async (req, res) => {
   try {
-    const { userId, status } = req.body;
+    if (req.body.role !== "admin")
+      return res.status(403).json({ message: "Admin only" });
 
-    const trip = await Trip.findById(req.params.id);
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    trip.participants.push({ userId, status });
-    await trip.save();
-
-    // Create notification
-    await Notification.create({
-      message: `New RSVP (${status}) for trip: ${trip.title}`,
-      userId: trip.createdBy,
+    const updated = await Trip.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
     });
 
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+// DELETE (Admin)
+router.delete("/:id", async (req, res) => {
+  try {
+    if (req.body.role !== "admin")
+      return res.status(403).json({ message: "Admin only" });
+
+    await Trip.findByIdAndDelete(req.params.id);
+    res.json({ message: "Trip deleted" });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+// RSVP (Users)
+router.post("/:id/rsvp", async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    trip.participants.push({
+      userId: req.body.userId,
+      status: req.body.status,
+    });
+
+    await trip.save();
     res.json(trip);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating RSVP", error });
+  } catch (err) {
+    res.status(500).json(err);
   }
 });
 

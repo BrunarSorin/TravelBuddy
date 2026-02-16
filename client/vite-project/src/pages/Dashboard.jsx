@@ -10,45 +10,82 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState([]);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const isAdmin = user?.role === "admin";
 
+  // CREATE TRIP (ADMIN)
   const createTrip = async () => {
     if (!title || !date || !location) return alert("Fill all fields");
 
-    await axios.post("http://localhost:5000/api/trips", {
-      title,
-      date,
-      location,
-      createdBy: user.name,
-    });
+    try {
+      await axios.post("http://localhost:5000/api/trips", {
+        title,
+        date,
+        location,
+        createdBy: user.name,
+        role: user.role,
+      });
 
-    setTitle("");
-    setDate("");
-    setLocation("");
+      setTitle("");
+      setDate("");
+      setLocation("");
 
-    loadTrips();
-    loadNotifications();
+      loadTrips();
+      loadNotifications();
+    } catch (err) {
+      alert("Only admin can create trips");
+    }
   };
 
+  // LOAD TRIPS
   const loadTrips = async () => {
-    const res = await axios.get("http://localhost:5000/api/trips");
-    setTrips(res.data);
+    try {
+      const res = await axios.get("http://localhost:5000/api/trips");
+      setTrips(res.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
+  // RSVP (USERS)
   const rsvp = async (tripId, status) => {
-    await axios.post(`http://localhost:5000/api/trips/${tripId}/rsvp`, {
-      userId: user._id,
-      status,
-    });
+    try {
+      await axios.post(`http://localhost:5000/api/trips/${tripId}/rsvp`, {
+        userId: user._id,
+        status,
+      });
 
-    loadTrips();
-    loadNotifications();
+      loadTrips();
+      loadNotifications();
+    } catch (err) {
+      alert("RSVP failed");
+    }
   };
 
+  // DELETE TRIP (ADMIN)
+  const deleteTrip = async (id) => {
+    if (!window.confirm("Delete this trip?")) return;
+
+    try {
+      await axios.delete(`http://localhost:5000/api/trips/${id}`, {
+        data: { role: user.role },
+      });
+
+      loadTrips();
+    } catch (err) {
+      alert("Admin only");
+    }
+  };
+
+  // LOAD NOTIFICATIONS
   const loadNotifications = async () => {
-    const res = await axios.get(
-      `http://localhost:5000/api/notifications/${user.name}`,
-    );
-    setNotifications(res.data);
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/notifications/${user.name}`,
+      );
+      setNotifications(res.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -58,27 +95,29 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <div className="section">
-        <h2>Create Trip</h2>
-        <div className="trip-form">
-          <input
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-          <input
-            placeholder="Location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-          <button onClick={createTrip}>Create</button>
+      {isAdmin && (
+        <div className="section">
+          <h2>Create Trip (Admin)</h2>
+          <div className="trip-form">
+            <input
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <input
+              placeholder="Location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+            <button onClick={createTrip}>Create</button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="section">
         <h2>Notifications</h2>
@@ -106,6 +145,19 @@ export default function Dashboard() {
               <button className="maybe" onClick={() => rsvp(trip._id, "Maybe")}>
                 Maybe
               </button>
+
+              {isAdmin && (
+                <button
+                  style={{
+                    marginLeft: "10px",
+                    background: "#dc2626",
+                    color: "white",
+                  }}
+                  onClick={() => deleteTrip(trip._id)}
+                >
+                  Delete
+                </button>
+              )}
             </div>
             <p>Participants: {trip.participants.length}</p>
           </div>
